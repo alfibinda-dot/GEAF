@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ALFI THE EMOJI</title>
+<style>
+  *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  button{cursor:pointer;border:0;border-radius:14px;padding:12px 18px;font-weight:700;font-size:16px}
+  .btn{background:rgba(255,255,255,.18);color:#fff;backdrop-filter: blur(6px);transition:.2s}
+  .btn:hover{background:rgba(255,255,255,.3);transform:translateY(-1px)}
+  .screen{display:none;height:100%;width:100%}
+
+  /* LOBBY */
+  #lobby{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;
+    background: linear-gradient(120deg,#ff0080,#7928ca,#2af598,#009efd);
+    background-size: 300% 300%; animation: bgshift 12s ease infinite; position:relative; overflow:hidden;
+  }
+  @keyframes bgshift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  /* bintang kecil */
+  .spark{position:absolute; width:6px;height:6px;border-radius:50%; background:rgba(255,255,255,.8); box-shadow:0 0 10px #fff}
+  #title{
+    font-size: clamp(26px,5vw,44px); font-weight:900; letter-spacing:.5px; text-align:center;
+    text-shadow:0 0 10px #fff,0 0 24px #ff69b4,0 0 36px #00e5ff; margin-bottom:10px;
+  }
+  #metaBar{
+    position:absolute; top:16px; left:0; right:0; display:flex; justify-content:space-between; padding:0 16px; gap:8px;
+  }
+  .pill{background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:12px}
+  #menu{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  #subtitle{opacity:.9}
+
+  /* GAME */
+  #game{background:#0b0b0c; position:relative; overflow:hidden}
+  #hud{position:absolute; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:14px; color:#fff; font-weight:700}
+  #player{position:absolute; font-size:40px; width:40px; height:40px; text-align:center; line-height:40px}
+  .trail{position:absolute; font-size:20px; opacity:.9; pointer-events:none}
+  .enemy{position:absolute; font-size:36px}
+  #ground{position:absolute; left:0; right:0; bottom:0; height:70px;
+    background: linear-gradient(#1b1b1f,#121214); border-top:2px solid #2b2b31}
+
+  /* OVERLAYS */
+  .overlay{
+    height:100%; width:100%; background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,.85));
+    display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; gap:12px; padding:16px; text-align:center
+  }
+  .wrap{max-width:900px; width:min(92%,900px)}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px}
+  .card{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15); border-radius:14px; padding:12px}
+  .owned{outline:2px solid #5cff7a}
+  .active{outline:2px solid #ffd54a}
+  .price{opacity:.9; font-weight:700}
+  .row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+  .big{font-size:22px}
+
+  /* GAMEOVER modal */
+  #overBox{position:absolute; inset:0; display:none; align-items:center; justify-content:center}
+  #overCard{background:rgba(0,0,0,.75); border:1px solid rgba(255,255,255,.2); color:#fff; padding:20px; border-radius:16px; text-align:center; min-width:260px}
+</style>
+</head>
+<body>
+
+<!-- LOBBY -->
+<section id="lobby" class="screen">
+  <div id="metaBar">
+    <div class="pill">⭐ Best: <span id="bestVal">0</span></div>
+    <div class="pill">💰 Coins: <span id="coinVal">0</span></div>
+  </div>
+  <div id="title">🌟 ALFI BINTANG PRATAMA 🌟</div>
+  <div id="subtitle">Selamat datang di <b>ALFI THE EMOJI</b>. Pilih menu di bawah untuk mulai!</div>
+  <div id="menu">
+    <button class="btn" onclick="startGame()">▶ Play</button>
+    <button class="btn" onclick="openRank()">🏆 Rank</button>
+    <button class="btn" onclick="openVault()">🎨 Vault</button>
+    <button class="btn" onclick="openShop()">💰 Shop</button>
+  </div>
+</section>
+
+<!-- GAME -->
+<section id="game" class="screen">
+  <div id="hud">
+    <div>Score: <span id="scoreVal">0</span></div>
+    <div>Rank: <span id="rankNameHUD">Bronze</span></div>
+    <div>+Per Musuh: <span id="perEnemyHUD">5</span></div>
+  </div>
+  <div id="player">😐</div>
+  <div id="ground"></div>
+  <div id="overBox">
+    <div id="overCard">
+      <div class="big">💀 Game Over</div>
+      <div>Score: <b id="finalScore">0</b></div>
+      <div>Koin didapat: <b id="finalCoins">0</b></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" onclick="toLobby()">⬅ Kembali ke Lobby</button>
+        <button class="btn" onclick="restart()">↻ Main Lagi</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RANK -->
+<section id="rank" class="screen overlay">
+  <div class="wrap">
+    <h2>🏆 Rank & Reward</h2>
+    <p>Rank saat ini: <b id="rankName">Bronze</b> — Poin Rank: <b id="rankXP">0</b></p>
+    <p>Menuju rank berikutnya: <b id="toNext">-</b></p>
+    <div id="claimZone"></div>
+    <div class="row">
+      <button class="btn" onclick="showLobby()">⬅ Back</button>
+    </div>
+  </div>
+</section>
+
+<!-- VAULT -->
+<section id="vault" class="screen overlay">
+  <div class="wrap">
+    <h2>🎨 Vault — Pilih Skin & Efek Lompat</h2>
+    <h3>Skin</h3>
+    <div id="vaultSkins" class="grid"></div>
+    <h3 style="margin-top:12px">Efek Lompat</h3>
+    <div id="vaultEffects" class="grid"></div>
+    <div class="row">
+      <button class="btn" onclick="showLobby()">⬅ Back</button>
+    </div>
+  </div>
+</section>
+
+<!-- SHOP -->
+<section id="shop" class="screen overlay">
+  <div class="wrap">
+    <h2>💰 Shop — Beli Skin & Efek</h2>
+    <p>Koinmu: <b id="shopCoins">0</b></p>
+    <h3>Skin</h3>
+    <div id="shopSkins" class="grid"></div>
+    <h3 style="margin-top:12px">Efek Lompat</h3>
+    <div id="shopEffects" class="grid"></div>
+    <div class="row">
+      <button class="btn" onclick="showLobby()">⬅ Back</button>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ===================== DATA & UTIL ===================== */
+const data = JSON.parse(localStorage.getItem('alfiData')||'{}');
+const state = {
+  coins: data.coins ?? 0,
+  best: data.best ?? 0,
+  rankXP: data.rankXP ?? 0,           // total poin untuk progress rank (dari skor)
+  rank: data.rank ?? 0,               // index rank array
+  ownedSkins: data.ownedSkins ?? ["😐"],
+  ownedEffects: data.ownedEffects ?? ["💨"],
+  skin: data.skin ?? "😐",
+  effect: data.effect ?? "💨",
+  rewardsClaimed: data.rewardsClaimed ?? {}, // {rankName:true}
+};
+const RANKS = [
+  {name:"Bronze",    req:0,    per:5,  reward:{type:'skin',  val:'😐'}},
+  {name:"Silver",    req:100,  per:8,  reward:{type:'effect',val:'✨'}},
+  {name:"Gold",      req:200,  per:11, reward:{type:'skin',  val:'😭'}},
+  {name:"Platinum",  req:500,  per:14, reward:{type:'effect',val:'🔥✨'}},
+  {name:"Diamond",   req:800,  per:17, reward:{type:'skin',  val:'😈'}},
+  {name:"Master",    req:1000, per:8,  reward:{type:'effect',val:'❄️'}},
+  {name:"Grandmaster",req:1500,per:23, reward:{type:'skin',  val:'🤯'}},
+];
+const SHOP_SKINS = [
+  {emoji:"🤡", price:500},{emoji:"👿", price:500},{emoji:"🗿", price:800},{emoji:"🐱", price:900}
+];
+const SHOP_EFFS = [
+  {emoji:"⚡", price:900},{emoji:"🌟", price:700},{emoji:"💥", price:900}
+];
+function save(){
+  localStorage.setItem('alfiData', JSON.stringify({
+    coins:state.coins,best:state.best,rankXP:state.rankXP,rank:state.rank,
+    ownedSkins:state.ownedSkins,ownedEffects:state.ownedEffects,
+    skin:state.skin,effect:state.effect,rewardsClaimed:state.rewardsClaimed
+  }));
+}
+function setScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.style.display='none');
+  document.getElementById(id).style.display='flex';
+}
+/* bintang dekor */
+(function stars(){
+  const lobby = document.getElementById('lobby');
+  for(let i=0;i<30;i++){
+    const s=document.createElement('div'); s.className='spark';
+    s.style.left = Math.random()*100+'%';
+    s.style.top = Math.random()*100+'%';
+    s.style.opacity = .5+Math.random()*0.5;
+    s.animate([{transform:'scale(1)'},{transform:'scale(1.8)'},{transform:'scale(1)'}],{duration:2000+Math.random()*2000,iterations:Infinity});
+    lobby.appendChild(s);
+  }
+})();
+
+/* ===================== LOBBY ===================== */
+const bestVal = document.getElementById('bestVal');
+const coinVal = document.getElementById('coinVal');
+function showLobby(){
+  bestVal.textContent = state.best;
+  coinVal.textContent = state.coins;
+  setScreen('lobby');
+}
+showLobby();
+
+/* ===================== RANK SCREEN ===================== */
+function openRank(){
+  const r=RANKS[state.rank];
+  document.getElementById('rankName').textContent = r.name;
+  document.getElementById('rankXP').textContent = state.rankXP;
+  const next = RANKS[state.rank+1];
+  document.getElementById('toNext').textContent = next? (next.req - state.rankXP>0? (next.req - state.rankXP)+' poin lagi' : 'Siap naik!'): 'MAX';
+  const claimZone = document.getElementById('claimZone');
+  claimZone.innerHTML = '';
+  // reward bisa di-claim jika sudah mencapai req rank tsb dan belum di-claim
+  if(!state.rewardsClaimed[r.name] && state.rankXP>=r.req && r.req>0){
+    const b=document.createElement('button'); b.className='btn'; b.textContent='🎁 Claim Reward: '+ (r.reward.type==='skin'?'Skin ':'Efek ') + r.reward.val;
+    b.onclick=()=> {
+      if(r.reward.type==='skin'){ if(!state.ownedSkins.includes(r.reward.val)) state.ownedSkins.push(r.reward.val); }
+      else { if(!state.ownedEffects.includes(r.reward.val)) state.ownedEffects.push(r.reward.val); }
+      state.rewardsClaimed[r.name]=true; save(); openRank();
+      alert('Reward berhasil diklaim!');
+    };
+    claimZone.appendChild(b);
+  } else {
+    const p=document.createElement('div'); p.textContent='Tidak ada reward yang bisa di-claim.';
+    claimZone.appendChild(p);
+  }
+  setScreen('rank');
+}
+
+/* ===================== VAULT ===================== */
+function renderVaultList(){
+  const vs = document.getElementById('vaultSkins'); vs.innerHTML='';
+  state.ownedSkins.forEach(em=>{
+    const c=document.createElement('div'); c.className='card '+(em===state.skin?'active':'owned');
+    c.innerHTML = `<div style="font-size:42px">${em}</div><div>${em===state.skin?'Aktif':'Pilih'}</div>`;
+    c.onclick=()=>{ state.skin=em; save(); renderVaultList(); };
+    vs.appendChild(c);
+  });
+  const ve = document.getElementById('vaultEffects'); ve.innerHTML='';
+  state.ownedEffects.forEach(em=>{
+    const c=document.createElement('div'); c.className='card '+(em===state.effect?'active':'owned');
+    c.innerHTML = `<div style="font-size:32px">${em}</div><div>${em===state.effect?'Aktif':'Pilih'}</div>`;
+    c.onclick=()=>{ state.effect=em; save(); renderVaultList(); };
+    ve.appendChild(c);
+  });
+}
+function openVault(){ renderVaultList(); setScreen('vault'); }
+
+/* ===================== SHOP ===================== */
+function openShop(){
+  document.getElementById('shopCoins').textContent = state.coins;
+  const SS=document.getElementById('shopSkins'); SS.innerHTML='';
+  SHOP_SKINS.forEach(item=>{
+    const owned = state.ownedSkins.includes(item.emoji);
+    const c=document.createElement('div'); c.className='card '+(owned?'owned':'');
+    c.innerHTML = `<div style="font-size:42px">${item.emoji}</div>
+                   <div class="price">${owned?'Sudah dimiliki':'Harga: '+item.price+'💰'}</div>
+                   ${owned?'': '<button class="btn" style="margin-top:6px">Beli</button>'}`;
+    if(!owned) c.querySelector('button').onclick=()=>{
+      if(state.coins>=item.price){ state.coins-=item.price; state.ownedSkins.push(item.emoji); save(); openShop(); alert('Berhasil membeli skin!'); }
+      else alert('Koin kurang!');
+    };
+    SS.appendChild(c);
+  });
+  const SE=document.getElementById('shopEffects'); SE.innerHTML='';
+  SHOP_EFFS.forEach(item=>{
+    const owned = state.ownedEffects.includes(item.emoji);
+    const c=document.createElement('div'); c.className='card '+(owned?'owned':'');
+    c.innerHTML = `<div style="font-size:32px">${item.emoji}</div>
+                   <div class="price">${owned?'Sudah dimiliki':'Harga: '+item.price+'💰'}</div>
+                   ${owned?'': '<button class="btn" style="margin-top:6px">Beli</button>'}`;
+    if(!owned) c.querySelector('button').onclick=()=>{
+      if(state.coins>=item.price){ state.coins-=item.price; state.ownedEffects.push(item.emoji); save(); openShop(); alert('Berhasil membeli efek!'); }
+      else alert('Koin kurang!');
+    };
+    SE.appendChild(c);
+  });
+  setScreen('shop');
+}
+
+/* ===================== GAMEPLAY ===================== */
+let raf=null, running=false;
+const gameEl = document.getElementById('game');
+const playerEl = document.getElementById('player');
+const groundEl = document.getElementById('ground');
+const scoreVal = document.getElementById('scoreVal');
+const rankNameHUD = document.getElementById('rankNameHUD');
+const perEnemyHUD = document.getElementById('perEnemyHUD');
+const overBox = document.getElementById('overBox');
+const finalScoreEl=document.getElementById('finalScore');
+const finalCoinsEl=document.getElementById('finalCoins');
+
+const GROUND_Y = 70; // px height
+let W,H;
+
+const playerObj = {x:80, y:0, vy:0, size:40, onGround:true};
+let enemies=[];
+let spawnT=0;
+let score=0;
+let coinsEarned=0;
+
+function layoutGame(){
+  W = gameEl.clientWidth; H = gameEl.clientHeight;
+  groundEl.style.height = GROUND_Y+'px';
+  groundEl.style.bottom = '0';
+}
+window.addEventListener('resize', layoutGame);
+
+function startGame(){
+  // set HUD
+  const r=RANKS[state.rank];
+  rankNameHUD.textContent = r.name;
+  perEnemyHUD.textContent = r.per;
+
+  // reset
+  setScreen('game'); layoutGame();
+  running=true; overBox.style.display='none';
+  enemies.length=0; spawnT=0; score=0; coinsEarned=0;
+  playerObj.x=80; playerObj.y = H - GROUND_Y - playerObj.size; playerObj.vy=0; playerObj.onGround=true;
+  playerEl.textContent = state.skin;
+  playerEl.style.left = playerObj.x+'px';
+  playerEl.style.top  = playerObj.y+'px';
+
+  // controls
+  window.addEventListener('keydown', onKey);
+  gameEl.addEventListener('touchstart', jump);
+  loop();
+}
+function onKey(e){ if(e.code==='Space' || e.code==='ArrowUp') jump(); }
+function jump(){
+  if(!running) return;
+  if(playerObj.onGround){
+    playerObj.vy = -15; playerObj.onGround=false;
+  }
+}
+function emitEffect(){
+  if(!state.effect) return;
+  const d=document.createElement('div'); d.className='trail'; d.textContent=state.effect;
+  d.style.left = (playerObj.x-6)+'px';
+  d.style.top  = (playerObj.y+10)+'px';
+  gameEl.appendChild(d);
+  d.animate([{transform:'translateY(0)',opacity:.9},{transform:'translateY(20px)',opacity:0}],{duration:300,fill:'forwards'});
+  setTimeout(()=>d.remove(),320);
+}
+
+function spawnEnemy(){
+  // normal enemy
+  enemies.push({x: W+40, y: H - GROUND_Y - 36, speed: 6+Math.random()*2, passed:false, emoji:'👾'});
+}
+function update(){
+  // gravity
+  playerObj.vy += 0.8;
+  playerObj.y  += playerObj.vy;
+  if(playerObj.y >= H - GROUND_Y - playerObj.size){
+    playerObj.y = H - GROUND_Y - playerObj.size; playerObj.vy=0; if(!playerObj.onGround){ emitEffect(); } playerObj.onGround=true;
+  } else {
+    emitEffect();
+  }
+  playerEl.style.top = playerObj.y+'px';
+
+  // enemies
+  spawnT -= 1;
+  if(spawnT<=0){ spawnEnemy(); spawnT = 50 + Math.floor(Math.random()*60); }
+  const per = RANKS[state.rank].per;
+  for(let i=enemies.length-1;i>=0;i--){
+    const e=enemies[i]; e.x -= e.speed;
+    let el = e.el;
+    if(!el){ el = e.el = document.createElement('div'); el.className='enemy'; el.textContent=e.emoji; gameEl.appendChild(el); }
+    el.style.left = e.x+'px'; el.style.top = e.y+'px';
+
+    // collision (AABB rough)
+    const hit = !( (playerObj.x+playerObj.size) < e.x || (playerObj.x) > (e.x+36) || (playerObj.y+playerObj.size) < e.y || (playerObj.y) > (e.y+36) );
+    if(hit){ gameOver(); return; }
+
+    // passed
+    if(!e.passed && e.x+36 < playerObj.x){
+      e.passed=true;
+      score += per;                  // skor per musuh via rank
+      coinsEarned += per * 5;        // 1 skor = 5 coin
+      scoreVal.textContent = score;
+    }
+    // remove offscreen
+    if(e.x < -60){ el.remove(); enemies.splice(i,1); }
+  }
+}
+function loop(){
+  if(!running) return;
+  update();
+  raf = requestAnimationFrame(loop);
+}
+function gameOver(){
+  running=false; cancelAnimationFrame(raf);
+  window.removeEventListener('keydown', onKey);
+  gameEl.removeEventListener('touchstart', jump);
+
+  // update progress
+  state.coins += coinsEarned;
+  state.rankXP += score;
+  // update rank index by current XP
+  let newRank = state.rank;
+  for(let i=RANKS.length-1;i>=0;i--){ if(state.rankXP>=RANKS[i].req){ newRank=i; break; } }
+  state.rank = newRank;
+
+  if(score > state.best) state.best = score;
+  save();
+
+  // show over
+  finalScoreEl.textContent = score;
+  finalCoinsEl.textContent = coinsEarned;
+  overBox.style.display='flex';
+}
+function toLobby(){ overBox.style.display='none'; showLobby(); }
+function restart(){ overBox.style.display='none'; startGame(); }
+
+/* ===================== INIT SHORTCUTS ===================== */
+window.addEventListener('blur', ()=>{ /* optional pause */ });
+
+/* expose buttons for back in overlays (already have showLobby) */
+</script>
+</body>
+</html>
